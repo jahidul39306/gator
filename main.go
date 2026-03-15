@@ -89,6 +89,10 @@ func main() {
 	}
 
 	db, err := sql.Open("postgres", cfg.DBURL)
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to connect to database: %w", err))
+	}
+	defer db.Close()
 	dbQueries := database.New(db)
 
 	sta := state{cfg: cfg, db: dbQueries}
