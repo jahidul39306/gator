@@ -82,6 +82,15 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
+func handlerReset(s *state, cmd command) error {
+	err := s.db.DeleteAllUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to delete all users: %w", err)
+	}
+	fmt.Println("All users have been deleted")
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -100,6 +109,7 @@ func main() {
 	cmds := commands{commandNames: make(map[string]func(*state, command) error)}
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerReset)
 
 	args := os.Args[1:]
 	if len(args) == 0 {
