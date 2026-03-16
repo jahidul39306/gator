@@ -3,8 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"html"
+	"io"
 	"log"
+	"net/http"
 	"os"
 
 	"time"
@@ -27,6 +32,22 @@ type command struct {
 
 type commands struct {
 	commandNames map[string]func(*state, command) error
+}
+
+type RSSFeed struct {
+	Channel struct {
+		Title       string    `xml:"title"`
+		Link        string    `xml:"link"`
+		Description string    `xml:"description"`
+		Items       []RSSItem `xml:"item"`
+	} `xml:"channel"`
+}
+
+type RSSItem struct {
+	Title       string `xml:"title"`
+	Link        string `xml:"link"`
+	Description string `xml:"description"`
+	PubDate     string `xml:"pubDate"`
 }
 
 func (c *commands) run(s *state, cmd command) error {
@@ -106,6 +127,60 @@ func handlerUsers(s *state, cmd command) error {
 	return nil
 }
 
+func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "gator")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetching feed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading body: %w", err)
+	}
+
+	var rssFeed RSSFeed
+	if err := xml.Unmarshal(body, &rssFeed); err != nil {
+		return nil, fmt.Errorf("parsing XML: %w", err)
+	}
+
+	rssFeed.Channel.Title = html.UnescapeString(rssFeed.Channel.Title)
+	rssFeed.Channel.Description = html.UnescapeString(rssFeed.Channel.Description)
+
+	for i := range rssFeed.Channel.Items {
+		rssFeed.Channel.Items[i].Title = html.UnescapeString(rssFeed.Channel.Items[i].Title)
+		rssFeed.Channel.Items[i].Description = html.UnescapeString(rssFeed.Channel.Items[i].Description)
+	}
+
+	return &rssFeed, nil
+}
+
+func handlerAgg(s *state, cmd command) error {
+	url := "https://www.wagslane.dev/index.xml"
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rssFeed, err := fetchFeed(ctx, url)
+	if err != nil {
+		return fmt.Errorf("Error: %w", err)
+	}
+
+	data, err := json.MarshalIndent(rssFeed, "", "  ")
+	if err != nil {
+		return fmt.Errorf("Error: %w", err)
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -126,6 +201,7 @@ func main() {
 	cmds.register("register", handlerRegister)
 	cmds.register("reset", handlerReset)
 	cmds.register("users", handlerUsers)
+	cmds.register("agg", handlerAgg)
 
 	args := os.Args[1:]
 	if len(args) == 0 {
