@@ -207,6 +207,15 @@ func handlerAddFeed(s *state, cmd command) error {
 	return nil
 }
 
+func handlerFeeds(s *state, cmd command) error {
+	allFeeds, err := s.db.GetAllFeedsWithUser(context.Background())
+	if err != nil {
+		return fmt.Errorf("fetching all feeds: %w", err)
+	}
+	fmt.Printf("%v\n", allFeeds)
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -229,6 +238,7 @@ func main() {
 	cmds.register("users", handlerUsers)
 	cmds.register("agg", handlerAgg)
 	cmds.register("addfeed", handlerAddFeed)
+	cmds.register("feeds", handlerFeeds)
 
 	args := os.Args[1:]
 	if len(args) == 0 {
