@@ -8,6 +8,8 @@ VALUES (
     $5,
     $6
 )
+ON CONFLICT (url) DO UPDATE
+SET url = EXCLUDED.url
 RETURNING *;
 
 -- name: GetAllFeeds :many

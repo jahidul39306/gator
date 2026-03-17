@@ -22,6 +22,8 @@ VALUES (
     $5,
     $6
 )
+ON CONFLICT (url) DO UPDATE
+SET url = EXCLUDED.url
 RETURNING id, created_at, updated_at, name, url, user_id
 `
 
