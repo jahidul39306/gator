@@ -181,6 +181,32 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.arguments) < 2 {
+		return fmt.Errorf("Need two arguments")
+	}
+	name, url := cmd.arguments[0], cmd.arguments[1]
+	username := s.cfg.CurrentUserName
+	user, err := s.db.GetUser(context.Background(), username)
+	if err != nil {
+		return fmt.Errorf("Fetching user: %w", err)
+	}
+	feedParams := database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      name,
+		Url:       url,
+		UserID:    user.ID,
+	}
+	cursor, err := s.db.CreateFeed(context.Background(), feedParams)
+	if err != nil {
+		return fmt.Errorf("Creating feed: %w", err)
+	}
+	fmt.Printf("%v\n", cursor)
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -202,6 +228,7 @@ func main() {
 	cmds.register("reset", handlerReset)
 	cmds.register("users", handlerUsers)
 	cmds.register("agg", handlerAgg)
+	cmds.register("addfeed", handlerAddFeed)
 
 	args := os.Args[1:]
 	if len(args) == 0 {
