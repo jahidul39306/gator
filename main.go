@@ -269,6 +269,18 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 	}
 }
 
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	unfollowParams := database.DeleteFeedFollowParams{
+		UserID: user.ID,
+		Url:    cmd.arguments[0],
+	}
+	err := s.db.DeleteFeedFollow(context.Background(), unfollowParams)
+	if err != nil {
+		return fmt.Errorf("Unfollowing: %w", err)
+	}
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -291,9 +303,11 @@ func main() {
 	cmds.register("users", handlerUsers)
 	cmds.register("agg", handlerAgg)
 	cmds.register("feeds", handlerFeeds)
+
 	cmds.register("addfeed", middlewareLoggedIn(handlerAddFeed))
 	cmds.register("follow", middlewareLoggedIn(handlerFollow))
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
+	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollow))
 
 	args := os.Args[1:]
 	if len(args) == 0 {
