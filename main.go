@@ -163,6 +163,9 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 }
 
 func handlerAgg(s *state, cmd command) error {
+	if len(cmd.arguments) < 1 {
+		return fmt.Errorf("Wrong number of arguments")
+	}
 	time_between_reqs := cmd.arguments[0]
 	timeBetweenRequests, err := time.ParseDuration(time_between_reqs)
 	if err != nil {
