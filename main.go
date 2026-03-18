@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"html"
@@ -164,21 +163,16 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	url := "https://www.wagslane.dev/index.xml"
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	rssFeed, err := fetchFeed(ctx, url)
+	time_between_reqs := cmd.arguments[0]
+	timeBetweenRequests, err := time.ParseDuration(time_between_reqs)
 	if err != nil {
-		return fmt.Errorf("Error: %w", err)
+		return fmt.Errorf("Time duration: %w", err)
 	}
-
-	data, err := json.MarshalIndent(rssFeed, "", "  ")
-	if err != nil {
-		return fmt.Errorf("Error: %w", err)
+	fmt.Printf("Collecting feeds for every %s", timeBetweenRequests)
+	ticker := time.NewTicker(timeBetweenRequests)
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
 	}
-	fmt.Println(string(data))
-	return nil
 }
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {
@@ -279,6 +273,43 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 		return fmt.Errorf("Unfollowing: %w", err)
 	}
 	return nil
+}
+
+func scrapeFeeds(s *state) error {
+	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return fmt.Errorf("Fetching next feed: %w", err)
+	}
+
+	err = s.db.MarkFeedFetched(context.Background(), nextFeed.ID)
+	if err != nil {
+		return fmt.Errorf("Marking feed as fetched: %w", err)
+	}
+
+	feed, err := s.db.GetFeedByUrl(context.Background(), nextFeed.Url)
+	if err != nil {
+		return fmt.Errorf("Fetching feed by url: %w", err)
+	}
+
+	url := feed.Url
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rssFeed, err := fetchFeed(ctx, url)
+	if err != nil {
+		return fmt.Errorf("Error: %w", err)
+	}
+
+	feedItems := rssFeed.Channel.Items
+
+	for _, item := range feedItems {
+		fmt.Printf("Title: %s\n", item.Title)
+		fmt.Printf("Link: %s\n", item.Link)
+		fmt.Println("--------------------------------------------------")
+		fmt.Println("--------------------------------------------------")
+	}
+	return nil
+
 }
 
 func main() {

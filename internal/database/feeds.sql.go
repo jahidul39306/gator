@@ -14,7 +14,7 @@ import (
 )
 
 const createFeed = `-- name: CreateFeed :one
-INSERT INTO feeds (id, created_at, updated_at, name, url, user_id, last_fetched_at)
+INSERT INTO feeds (id, created_at, updated_at, name, url, last_fetched_at, user_id)
 VALUES (
     $1,
     $2,
@@ -35,8 +35,8 @@ type CreateFeedParams struct {
 	UpdatedAt     time.Time
 	Name          string
 	Url           string
-	UserID        uuid.UUID
 	LastFetchedAt sql.NullTime
+	UserID        uuid.UUID
 }
 
 func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, error) {
@@ -46,8 +46,8 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, e
 		arg.UpdatedAt,
 		arg.Name,
 		arg.Url,
-		arg.UserID,
 		arg.LastFetchedAt,
+		arg.UserID,
 	)
 	var i Feed
 	err := row.Scan(

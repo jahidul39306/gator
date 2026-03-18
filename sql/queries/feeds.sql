@@ -1,5 +1,5 @@
 -- name: CreateFeed :one
-INSERT INTO feeds (id, created_at, updated_at, name, url, user_id, last_fetched_at)
+INSERT INTO feeds (id, created_at, updated_at, name, url, last_fetched_at, user_id)
 VALUES (
     $1,
     $2,
