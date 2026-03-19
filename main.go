@@ -334,6 +334,13 @@ func scrapeFeeds(s *state) error {
 
 }
 
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	limit := 2
+	if len(cmd.arguments) > 1 {
+		limit = cmd.arguments[0]
+	}
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
