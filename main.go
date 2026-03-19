@@ -358,7 +358,8 @@ func handlerBrowse(s *state, cmd command, user database.User) error {
 		fmt.Printf("--- %s ---\n", post.Title)
 		fmt.Printf("Link: %s\n", post.Url)
 		if post.Description.Valid {
-			fmt.Printf("Desc: %s\n", post.Description.String)
+			cleanDesc := html.UnescapeString(post.Description.String)
+			fmt.Printf("Desc: %s\n", cleanDesc)
 		}
 		fmt.Println()
 	}
