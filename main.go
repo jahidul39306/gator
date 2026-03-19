@@ -306,10 +306,29 @@ func scrapeFeeds(s *state) error {
 	feedItems := rssFeed.Channel.Items
 
 	for _, item := range feedItems {
-		fmt.Printf("Title: %s\n", item.Title)
-		fmt.Printf("Link: %s\n", item.Link)
-		fmt.Println("--------------------------------------------------")
-		fmt.Println("--------------------------------------------------")
+		parsedDate, err := time.Parse(time.RFC1123Z, item.PubDate)
+		postArgs := database.CreatePostParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Title:     item.Title,
+			Url:       item.Link,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid:  item.Description != "",
+			},
+			PublishedAt: sql.NullTime{
+				Time:  parsedDate,
+				Valid: err == nil,
+			},
+			FeedID: feed.ID,
+		}
+		posts, err := s.db.CreatePost(context.Background(), postArgs)
+		if err != nil {
+			log.Printf("Skipping post (already exists or error): %v", err)
+			continue
+		}
+		fmt.Printf("Stored post: %s\n", posts.Title)
 	}
 	return nil
 
