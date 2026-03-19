@@ -13,6 +13,8 @@ import (
 
 	"time"
 
+	"strconv"
+
 	"github.com/google/uuid"
 	"github.com/jahidul39306/gator/internal/config"
 	"github.com/jahidul39306/gator/internal/database"
@@ -323,12 +325,11 @@ func scrapeFeeds(s *state) error {
 			},
 			FeedID: feed.ID,
 		}
-		posts, err := s.db.CreatePost(context.Background(), postArgs)
+		_, err = s.db.CreatePost(context.Background(), postArgs)
 		if err != nil {
 			log.Printf("Skipping post (already exists or error): %v", err)
 			continue
 		}
-		fmt.Printf("Stored post: %s\n", posts.Title)
 	}
 	return nil
 
@@ -336,9 +337,32 @@ func scrapeFeeds(s *state) error {
 
 func handlerBrowse(s *state, cmd command, user database.User) error {
 	limit := 2
-	if len(cmd.arguments) > 1 {
-		limit = cmd.arguments[0]
+	if len(cmd.arguments) > 0 {
+		val, err := strconv.Atoi(cmd.arguments[0])
+		if err != nil {
+			return fmt.Errorf("Parsing argumnet: %w", err)
+		}
+		limit = val
 	}
+	getPostParam := database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  int32(limit),
+	}
+	posts, err := s.db.GetPostsForUser(context.Background(), getPostParam)
+	if err != nil {
+		return fmt.Errorf("Fetching posts for user: %w", err)
+	}
+
+	fmt.Printf("Found %d posts for user %s:\n", len(posts), user.Name)
+	for _, post := range posts {
+		fmt.Printf("--- %s ---\n", post.Title)
+		fmt.Printf("Link: %s\n", post.Url)
+		if post.Description.Valid {
+			fmt.Printf("Desc: %s\n", post.Description.String)
+		}
+		fmt.Println()
+	}
+	return nil
 }
 
 func main() {
@@ -368,6 +392,7 @@ func main() {
 	cmds.register("follow", middlewareLoggedIn(handlerFollow))
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
 	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+	cmds.register("browse", middlewareLoggedIn(handlerBrowse))
 
 	args := os.Args[1:]
 	if len(args) == 0 {
